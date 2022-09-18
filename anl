@@ -1,0 +1,50 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 用黑体显示中文
+
+df = pd.read_excel("yq_data_all.xlsx")
+
+df['date'] = pd.to_datetime(df['date'])
+df.set_index('date',inplace=True)
+
+df[df['area_name']=='中国']['add_confirm'].plot()
+# 设置标题
+plt.title("中国新增确诊")
+# 为两条坐标轴设置名称
+plt.xlabel("时间")
+plt.ylabel("数量")
+# 显示图例
+plt.legend()
+plt.show()
+
+
+df[df['area_name']=='中国']['suspect'].plot()
+# 设置标题
+plt.title("中国新增无症状感染")
+# 为两条坐标轴设置名称
+plt.xlabel("时间")
+plt.ylabel("数量")
+# 显示图例
+plt.legend()
+plt.show()
+
+names = df['area_name'].value_counts().index.tolist()
+
+for name in names:
+    temp = df[df['area_name'] == name].iloc[-1,2:-1]
+    x = temp.index.tolist()
+    y = temp.values
+
+    # 绘图
+    plt.bar(x=x, height=y, label='数量', color='steelblue', alpha=0.8)
+    # 在柱状图上显示具体数值, ha参数控制水平对齐方式, va控制垂直对齐方式
+    for x1, yy in zip(x, y):
+        plt.text(x1, yy + 1, str(yy), ha='center', va='bottom', fontsize=10, rotation=0)
+    # 设置标题
+    plt.title(f"{name}")
+    # 为两条坐标轴设置名称
+    plt.xlabel("分类")
+    plt.ylabel("数量")
+    # 显示图例
+    plt.legend()
+    plt.show()
