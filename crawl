@@ -1,58 +1,50 @@
 import requests
-import pandas as pd
-from tqdm import tqdm
+import pandas as pd #解决数据分析任务
+from tqdm import tqdm #显示进度条
 import time
 
-class WorldVirusSpider(object):
+class VirusSpider(object):
     def __init__(self):
         self.area_url = 'https://c.m.163.com/ug/api/wuhan/app/data/list-total'
         self.home_url = 'https://c.m.163.com/ug/api/wuhan/app/data/list-by-area-code?areaCode='
 
+    # 根据url,获取响应内容的字符串数据
     def get_json_from_url(self, url):
-        """
-        根据url,获取响应内容的字符串数据
-        :param url :请求url
-        :return: 响应内容的字符串
-        """
+
         headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.71 Safari/537.36"}
+        # 发起请求, get方法会返回一个响应对象
         response = requests.get( url= url,headers = headers)
+        # 解析requests返回的response(json格式)
         return response.json()
 
-
+    # 解析json内容，获取Python数据
     def data_analyz(self,area_name,data):
-        """
-        解析json内容，获取Python数据
-        :param  data:首页内容
-        :return: 解析后的Python数据
-            add_confirm  # 新增确诊
-            total_confirm #累计确诊
-            heal  #累计治愈
-            dead  #累计死亡
-            now_confirm  #现有确诊
-        """
+
         date = data['date']
-        add_confirm = data['today']['confirm']
-        total_confirm = data['total']['confirm']
-        heal = data['total']['heal']
-        dead = data['total']['dead']
-        suspect = data['total']['suspect']
-        now_confirm = total_confirm - heal -  dead
+        add_confirm = data['today']['confirm'] # 新增确诊
+        total_confirm = data['total']['confirm'] #累计确诊
+        heal = data['total']['heal'] #累计治愈
+        dead = data['total']['dead']  #累计死亡
+        suspect = data['total']['suspect'] #疑似
+        now_confirm = total_confirm - heal -  dead #现有确诊
         return {'area_name':area_name,'date':date,'now_confirm':now_confirm,'add_confirm':add_confirm,'total_confirm':total_confirm,'heal':heal,'dead':dead,'suspect':suspect}
 
-
+    # 获取城市代码
     def get_countryAndcity_id(self):
-        # 获取 全世界国家代码及城市代码
+
         area_code_list = []
         data_json = self.get_json_from_url(self.area_url)
         data = data_json['data']['areaTree']
         for country_list in data:
+            # 找到国家
             if country_list['name'] == '中国':
+                # 提取国家各省
                 for province_list in country_list['children'] :
                     for city_list in province_list['children']:
                         area_code_list.append({'country_name':country_list['name'],'country_id':country_list['id'],'province_name':province_list['name'],'province_id':province_list['id'],'city_name':city_list['name'],'city_id':city_list['id']})
             else:
                 area_code_list.append({'country_name': country_list['name'], 'country_id': country_list['id'],'province_name': 'null', 'province_id': 'null','city_name': 'null', 'city_id': 'null'})
-        area_code_df = pd.DataFrame(area_code_list)
+        area_code_df = pd.DataFrame(area_code_list) # 二维标签数据结构
         return area_code_df
 
     # 获取不同代码的历史数据
@@ -61,31 +53,31 @@ class WorldVirusSpider(object):
         data_json = self.get_json_from_url(self.home_url+area_code)
         yq_json = data_json['data']['list']
         for data in yq_json:
+            # 在原有列表上增加对象
             yq_datalist.append(self.data_analyz(area_name,data))
         return pd.DataFrame(yq_datalist)
 
 
-    def list_with(self,Series):
-        """
-        df去重
-        :param  Series:andas.core.series.Series
-        :return: str
-        """
+    def list_with(self,Series): #去重df
+
         return ''.join(list(set(Series)))
 
-
+    # 创建Excel表格，将数据保存进去
     def save_to_excel(self,df,sheetName):
         with  pd.ExcelWriter('yq_data_all.xlsx') as writer:
             df.to_excel(excel_writer=writer,sheet_name=sheetName)
             writer.save()
 
+    # 获取目标区域的id
     def get_res_code(self):
-        # 获取目标区域的id 根据自己需求来
+
         res_area_code_list = []
         area_df = self.get_countryAndcity_id()
+        # value_counts()统计次数，index查找指定值的首次出现，将数组作为列表返回
         temp = area_df[area_df.country_name == '中国']['province_name'].value_counts().index.tolist()
         res_area_code_list.append({'area_code':self.list_with(area_df[area_df.country_name == '中国']['country_id']), 'area_name':'中国'})
 
+    # 遍历增添省名
         for te in temp:
             res_area_code_list.append({'area_code':self.list_with(area_df[area_df.province_name == te]['province_id']), 'area_name':te})
 
@@ -97,16 +89,16 @@ class WorldVirusSpider(object):
             _area_list = self.get_res_code()
             for area in tqdm(_area_list,desc = 'Processing'):
                 df = self.get_area_yq_data_his(area['area_code'],area['area_name'])
-                _con_df = pd.concat([_con_df,df],axis=0) #0 行拼接 1 列拼接
-                time.sleep(0.5)
+                _con_df = pd.concat([_con_df,df],axis=0) # 0行拼接，1列拼接
+                time.sleep(0.5) # 给定时间内挂起当前线程的执行
             _con_df= _con_df[(_con_df['area_name'] != 'null')]
             self.save_to_excel(_con_df,'confirm')
-            print('=========Writer data Successful!=======')
+            print('Writer data Successful!')
         except:
-            print('==================Error!===============')
+            print('Error!')
 
 
 if __name__ == '__main__':
-    spider = WorldVirusSpider()
+    spider = VirusSpider()
     spider.run()
 
