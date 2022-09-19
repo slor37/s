@@ -2,11 +2,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用黑体显示中文
 
+# 用pandas读取疫情数据
 df = pd.read_excel("yq_data_all.xlsx")
-
+# 时间序列解析，获取指定的时间和日期
 df['date'] = pd.to_datetime(df['date'])
+# 索引设置
 df.set_index('date',inplace=True)
 
+# plot函数绘制线图
 df[df['area_name']=='中国']['add_confirm'].plot()
 # 设置标题
 plt.title("中国新增确诊")
@@ -28,14 +31,15 @@ plt.ylabel("数量")
 plt.legend()
 plt.show()
 
+# 设置xy坐标
 names = df['area_name'].value_counts().index.tolist()
 
 for name in names:
-    temp = df[df['area_name'] == name].iloc[-1,2:-1]
+    temp = df[df['area_name'] == name].iloc[-1,2:-1] #索引切片
     x = temp.index.tolist()
     y = temp.values
 
-    # 绘图
+    # 绘制柱状图
     plt.bar(x=x, height=y, label='数量', color='steelblue', alpha=0.8)
     # 在柱状图上显示具体数值, ha参数控制水平对齐方式, va控制垂直对齐方式
     for x1, yy in zip(x, y):
